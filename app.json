@@ -4,8 +4,9 @@
     "slug": "imposter",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/gg.png",
+    "icon": "./assets/images/icon.png",
     "scheme": "imposter",
+    "backgroundColor": "#070B14",
     "assetBundlePatterns": [
       "**/*"
     ],
@@ -17,32 +18,33 @@
     "android": {
       "package": "com.usama.imposter",
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/images/gg.png",
-        "backgroundImage": "./assets/images/gg.png",
-        "monochromeImage": "./assets/images/gg.png"
+        "backgroundColor": "#070B14",
+        "foregroundImage": "./assets/images/adaptive-foreground.png",
+        "backgroundImage": "./assets/images/adaptive-background.png",
+        "monochromeImage": "./assets/images/adaptive-foreground.png"
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false
     },
     "web": {
       "output": "static",
-      "favicon": "./assets/images/gg.png"
+      "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
       "expo-router",
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/gg.png",
+          "image": "./assets/images/splash-icon.png",
           "imageWidth": 200,
           "resizeMode": "contain",
-          "backgroundColor": "#ffffff",
+          "backgroundColor": "#070B14",
           "dark": {
-            "backgroundColor": "#000000"
+            "backgroundColor": "#070B14"
           }
         }
-      ]
+      ],
+      "expo-audio"
     ],
     "experiments": {
       "typedRoutes": true,
