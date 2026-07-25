@@ -1,24 +1,3 @@
-/**
- * Rasterizes the المندس logo to the PNGs the app needs.
- *
- *   node scripts/gen-icons.js
- *
- * Same geometry as app/components/Logo.tsx, kept deliberately simple (circles,
- * a rounded rect, two flattened Bezier silhouettes, a stroked question mark) so
- * it can be drawn with no image libraries at all — just Node's built-in zlib for
- * the PNG deflate stream, plus a hand-rolled CRC32 and chunk writer.
- *
- * Edges are anti-aliased by 4x4 supersampling and painter's-algorithm
- * compositing per subsample, which also gets the translucent glow right.
- *
- * Outputs (assets/images/):
- *   icon.png                 1024  full-bleed, for iOS/general app icon
- *   adaptive-foreground.png  1024  art only, inset for Android's mask
- *   adaptive-background.png  1024  flat backdrop for the adaptive icon
- *   splash-icon.png           512  transparent, for the splash
- *   favicon.png                64  web
- */
-
 const fs = require("fs");
 const path = require("path");
 const zlib = require("zlib");

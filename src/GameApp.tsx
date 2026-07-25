@@ -1,12 +1,3 @@
-/**
- * State owner and router for المندس.
- *
- * All the game rules live here; every screen under `src/screens/` is
- * presentational and receives props. The round engine (validateBeforeStart,
- * startNewRound, nextPlayer, showSecretForCurrent, resetToSetup) is unchanged
- * from before the UI overhaul — only the phase machine grew two members as the
- * old combined "setup" screen split into "categories" and "players".
- */
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { useEffect, useMemo, useRef, useState } from "react";
@@ -71,12 +62,12 @@ const DEFAULT_SELECTED: Record<CategoryKey, boolean> = Object.fromEntries(
 );
 
 const HOW_TO_PLAY =
-  "كل اللاعبين يشوفون نفس الكلمة… إلا واحد، هو المندس.\n\n" +
+  "كل اللاعبين يشوفوا نفس الكلمة… إلا واحد، هو المندس.\n\n" +
   "١. اختاروا الفئات وأضيفوا اللاعبين.\n" +
-  "٢. مرروا الجوال، وكل واحد يشوف دوره لحاله.\n" +
+  "٢. مرروا الجوال، وكل واحد يشوف دوره لوحده.\n" +
   "٣. بالتناوب، كل واحد يوصف الكلمة بكلمة أو كلمتين — بدون ما يقولها.\n" +
   "٤. المندس ما يعرف الكلمة، فلازم يتمثّل ويخمّن.\n" +
-  "٥. تناقشوا وصوّتوا: مين المندس؟";
+  "٥. تناقشوا وصوّتوا: من المندس؟";
 
 export default function GameApp() {
   const [selectedCategories, setSelectedCategories] =
