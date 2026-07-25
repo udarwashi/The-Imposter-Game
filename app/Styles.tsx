@@ -103,7 +103,6 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.05)",
     borderRadius: 18,
     padding: 5,
-    marginBottom: 5
   },
 
   listText: {

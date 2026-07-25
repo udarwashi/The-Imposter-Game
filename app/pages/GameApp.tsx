@@ -10,9 +10,9 @@ import {
   TextInput,
   View
 } from "react-native";
-import DraggableFlatList, { RenderItemParams } from "react-native-draggable-flatlist";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import AppText from "../components/AppText";
+import ReorderableList, { ReorderableRowInfo } from "../components/ReorderableList";
 import PrimaryButton from "../components/PrimaryButton";
 import SecondaryButton from "../components/SecondaryButton";
 import styles from "../Styles";
@@ -64,6 +64,9 @@ function sample<T>(arr: T[]) {
   return arr[randInt(arr.length)];
 }
 
+// Module scope so its identity is stable across renders.
+const playerKey = (p: Player) => p.id;
+
 export default function GameApp() {
   const [selectedCategories, setSelectedCategories] = useState<Record<CategoryKey, boolean>>({
     places: true,
@@ -94,6 +97,8 @@ export default function GameApp() {
   const [editPlayerIndex, setEditPlayerIndex] = useState(-1);
   const [editPlayerName, setEditPlayerName] = useState("");
   const [editPlayerId, setEditPlayerId] = useState<string | null>(null);
+  // Measured so drag-to-edge auto-scroll triggers above the sticky bar.
+  const [bottomBarHeight, setBottomBarHeight] = useState(0);
 
   const editInputRef = useRef<TextInput>(null);
   const currentPlayerName =
@@ -145,16 +150,38 @@ useEffect(() => {
 }, [selectedCategories, players, hydrated]);
 
 
-  function openPlayerEditMenu(player: Player) {
-  setEditPlayerId(player.id);
-  setEditPlayerName(player.name);
-  setPlayerEditModalOpen(true);
-      requestAnimationFrame(() => {
+  // Stable so the player rows can memoize and stay out of unrelated renders.
+  const openPlayerEditMenu = React.useCallback((player: Player) => {
+    setEditPlayerId(player.id);
+    setEditPlayerName(player.name);
+    setPlayerEditModalOpen(true);
+    requestAnimationFrame(() => {
       setTimeout(() => {
         editInputRef.current?.focus();
       }, 100);
     });
-}
+  }, []);
+
+  const renderPlayerRow = React.useCallback(
+    ({ item, DragHandle }: ReorderableRowInfo<Player>) => (
+      <View style={styles.listItem}>
+        <DragHandle style={styles.dragHandle} hitSlop={10}>
+          <Ionicons name="reorder-three" size={22} color="#9aa3b2" />
+        </DragHandle>
+
+        <AppText style={styles.listText} numberOfLines={1}>
+          {item.name}
+        </AppText>
+
+        <Pressable onPress={() => openPlayerEditMenu(item)} style={{ width: 90 }}>
+          <LinearGradient colors={["#1F2636", "#0E1320"]} style={styles.gbtnSmall}>
+            <AppText style={styles.gbtnText}>تعديل</AppText>
+          </LinearGradient>
+        </Pressable>
+      </View>
+    ),
+    [openPlayerEditMenu]
+  );
 
   const closePlayerEditModal = () => {
     setPlayerEditModalOpen(false);
@@ -352,15 +379,14 @@ if (hydrated) {
 
       {phase === "setup" && (
         <View style={{ flex: 1 }}>
-          <DraggableFlatList
+          <ReorderableList
             data={players}
-            extraData={players.length}
-            keyExtractor={(item) => item.id}
-            onDragEnd={({ data }) => setPlayers(data)}
-            activationDistance={6}
+            keyExtractor={playerKey}
+            onReorder={setPlayers}
             keyboardShouldPersistTaps="handled"
             contentContainerStyle={{ paddingBottom: 150 }}
-            ListHeaderComponent={
+            autoScrollBottomInset={bottomBarHeight}
+            header={
               <>
                 <View style={styles.setupHeader}>
                   <AppText style={styles.h2}>1) اختيار الفئات</AppText>
@@ -405,23 +431,12 @@ if (hydrated) {
                 </View>
               </>
             }
-            renderItem={({ item, drag, isActive }: RenderItemParams<Player>) => (
-              <View style={[styles.listItem, isActive && { opacity: 0.85 }]}>
-                <Pressable onPressIn={drag} style={styles.dragHandle} hitSlop={10}>
-                  <Ionicons name="reorder-three" size={22} color="#9aa3b2" />
-                </Pressable>
-
-                <AppText style={styles.listText}>{item.name}</AppText>
-
-                <Pressable onPress={() => openPlayerEditMenu(item)} style={{ width: 90 }}>
-                  <LinearGradient colors={["#1F2636", "#0E1320"]} style={styles.gbtnSmall}>
-                    <AppText style={styles.gbtnText}>تعديل</AppText>
-                  </LinearGradient>
-                </Pressable>
-              </View>
-            )}
+            renderItem={renderPlayerRow}
           />
-          <View style={styles.stickyBottomBar}>
+          <View
+            style={styles.stickyBottomBar}
+            onLayout={(e) => setBottomBarHeight(e.nativeEvent.layout.height)}
+          >
             <PrimaryButton title="ابدأ جولة جديدة" onPress={startNewRound} />
           </View>
         </View>
