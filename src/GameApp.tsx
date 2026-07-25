@@ -10,7 +10,9 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { CATEGORY_AR, CATEGORY_KEYS } from "../assets/data/categories";
+import { CATEGORY_KEYS } from "../assets/data/categories";
+import { categoryName, WordPair, wordIn, wordsFor } from "./content";
+import { useI18n } from "./i18n";
 import AppText from "./components/AppText";
 import GameButton from "./components/GameButton";
 import GameModal from "./components/GameModal";
@@ -33,21 +35,27 @@ type PersistedState = {
   players: Player[];
 };
 
-const WORDS = require("../assets/data/words.json");
-
 type ModalMode = "info" | "confirm";
 
 type Phase = "home" | "categories" | "players" | "reveal" | "discussion";
 
+/**
+ * A round stores the category KEY and the whole `[ar, en]` pair rather than
+ * display strings, so switching language mid-round re-labels the card instead
+ * of stranding the players on the language the round started in.
+ */
 type RoundState = {
   categoryKey: CategoryKey;
-  categoryNameAr: string;
-  secretWord: any;
+  secretWord: WordPair;
   imposterIndex: number;
   revealed: boolean[];
   currentRevealIndex: number;
   step: "name" | "secret";
 };
+
+const MIN_PLAYERS = 3;
+/** The round engine refuses to start a category thinner than this. */
+const MIN_WORDS_PER_CATEGORY = 4;
 
 function randInt(maxExclusive: number) {
   return Math.floor(Math.random() * maxExclusive);
@@ -61,15 +69,8 @@ const DEFAULT_SELECTED: Record<CategoryKey, boolean> = Object.fromEntries(
   CATEGORY_KEYS.map((k) => [k, true])
 );
 
-const HOW_TO_PLAY =
-  "كل اللاعبين يشوفوا نفس الكلمة… إلا واحد، هو المندس.\n\n" +
-  "١. اختاروا الفئات وأضيفوا اللاعبين.\n" +
-  "٢. مرروا الجوال، وكل واحد يشوف دوره لوحده.\n" +
-  "٣. بالتناوب، كل واحد يوصف الكلمة بكلمة أو كلمتين — بدون ما يقولها.\n" +
-  "٤. المندس ما يعرف الكلمة، فلازم يتمثّل ويخمّن.\n" +
-  "٥. تناقشوا وصوّتوا: من المندس؟";
-
 export default function GameApp() {
+  const { lang, t, dir } = useI18n();
   const [selectedCategories, setSelectedCategories] =
     useState<Record<CategoryKey, boolean>>(DEFAULT_SELECTED);
   const [players, setPlayers] = useState<Player[]>([]);
@@ -82,8 +83,10 @@ export default function GameApp() {
   const [uiModalTitle, setUiModalTitle] = useState("");
   const [danger, setDanger] = useState(false);
   const [uiModalBody, setUiModalBody] = useState("");
-  const [uiModalConfirmText, setUiModalConfirmText] = useState("نعم");
-  const [uiModalCancelText, setUiModalCancelText] = useState("إلغاء");
+  // Empty means "use the language's default" — resolved at render, so the
+  // buttons follow a language switch made while the dialog is open.
+  const [uiModalConfirmText, setUiModalConfirmText] = useState("");
+  const [uiModalCancelText, setUiModalCancelText] = useState("");
   const uiModalOnConfirmRef = useRef<null | (() => void)>(null);
   const [playerEditModalOpen, setPlayerEditModalOpen] = useState(false);
   const [editPlayerName, setEditPlayerName] = useState("");
@@ -198,10 +201,10 @@ export default function GameApp() {
 
   function requestResetToSetup() {
     showConfirm({
-      title: "تأكيد",
-      body: "هل تريد فعلاً إنهاء الجولة والرجوع للإعداد؟ سيتم فقدان الجولة الحالية.",
-      confirmText: "نعم، إنهاء",
-      cancelText: "إلغاء",
+      title: t.confirmTitle,
+      body: t.endRoundBody,
+      confirmText: t.endRoundConfirm,
+      cancelText: t.cancel,
       danger: true,
       onConfirm: () => {
         resetToSetup();
@@ -211,10 +214,10 @@ export default function GameApp() {
 
   function requestToViewImposter() {
     showConfirm({
-      title: "تأكيد",
-      body: "هل تريد فعلاً عرض المندس؟",
-      confirmText: "نعم، عرض",
-      cancelText: "إلغاء",
+      title: t.confirmTitle,
+      body: t.revealImposterBody,
+      confirmText: t.revealImposterConfirm,
+      cancelText: t.cancel,
       danger: false,
       onConfirm: () => {
         setShowImposter(true);
@@ -250,25 +253,24 @@ export default function GameApp() {
     setUiModalTitle(opts.title);
     setUiModalBody(opts.body);
     setDanger(!!opts.danger);
-    setUiModalConfirmText(opts.confirmText ?? "نعم");
-    setUiModalCancelText(opts.cancelText ?? "إلغاء");
+    setUiModalConfirmText(opts.confirmText ?? "");
+    setUiModalCancelText(opts.cancelText ?? "");
     uiModalOnConfirmRef.current = opts.onConfirm;
     setUiModalOpen(true);
   }
 
   function validateBeforeStart(): boolean {
-    if (players.length < 3) {
-      showInfo("سلامات صاحبي", "لازم 3 لاعبين على الأقل.");
+    if (players.length < MIN_PLAYERS) {
+      showInfo(t.holdOn, t.needThreePlayers(MIN_PLAYERS));
       return false;
     }
     if (activeCategoryKeys.length === 0) {
-      showInfo("سلامات صاحبي", "اختر فئة واحدة على الأقل.");
+      showInfo(t.holdOn, t.needOneCategory);
       return false;
     }
     for (const k of activeCategoryKeys) {
-      const list = WORDS[k];
-      if (!list || list.length < 4) {
-        showInfo("خطأ", `قائمة كلمات فئة ${CATEGORY_AR[k]} صغيرة جدًا.`);
+      if (wordsFor(k).length < MIN_WORDS_PER_CATEGORY) {
+        showInfo(t.errorTitle, t.wordListTooSmall(categoryName(k, lang)));
         return false;
       }
     }
@@ -281,14 +283,12 @@ export default function GameApp() {
     if (!validateBeforeStart()) return;
 
     const categoryKey = sample(activeCategoryKeys);
-    const wordList = WORDS[categoryKey];
-    const secretWord = sample(wordList);
+    const secretWord = sample(wordsFor(categoryKey));
 
     const imposterIndex = randInt(players.length);
 
     const newRound: RoundState = {
       categoryKey,
-      categoryNameAr: CATEGORY_AR[categoryKey],
       secretWord,
       imposterIndex,
       revealed: Array(players.length).fill(false),
@@ -340,7 +340,7 @@ export default function GameApp() {
       <ScreenBackground>
         <View style={styles.loading}>
           <ActivityIndicator color={colors.green} />
-          <AppText style={styles.loadingText}>جاري التحميل…</AppText>
+          <AppText style={styles.loadingText}>{t.loading}</AppText>
         </View>
       </ScreenBackground>
     );
@@ -351,7 +351,7 @@ export default function GameApp() {
       {phase === "home" && (
         <HomeScreen
           onStart={() => setPhase("categories")}
-          onHowToPlay={() => showInfo("كيف نلعب؟", HOW_TO_PLAY)}
+          onHowToPlay={() => showInfo(t.howToPlayTitle, t.howToPlayBody)}
           savedPlayers={players.length}
           savedCategories={activeCategoryKeys.length}
         />
@@ -389,8 +389,8 @@ export default function GameApp() {
           revealed={round.revealed}
           step={round.step}
           isImposter={round.currentRevealIndex === round.imposterIndex}
-          categoryNameAr={round.categoryNameAr}
-          secretWord={String(round.secretWord)}
+          categoryName={categoryName(round.categoryKey, lang)}
+          secretWord={wordIn(round.secretWord, lang)}
           onShowSecret={showSecretForCurrent}
           onNext={nextPlayer}
           onEndRound={requestResetToSetup}
@@ -401,8 +401,8 @@ export default function GameApp() {
         <DiscussionScreen
           playerNames={players.map((p) => p.name)}
           imposterName={players?.[round.imposterIndex]?.name ?? ""}
-          categoryNameAr={round.categoryNameAr}
-          secretWord={String(round.secretWord)}
+          categoryName={categoryName(round.categoryKey, lang)}
+          secretWord={wordIn(round.secretWord, lang)}
           showImposter={showImposter}
           onRevealImposter={requestToViewImposter}
           onNewRound={startNewRound}
@@ -419,18 +419,18 @@ export default function GameApp() {
         dismissOnBackdrop={uiModalMode === "info"}
       >
         {uiModalMode === "info" ? (
-          <GameButton title="تمام" variant="secondary" onPress={closeUiModal} />
+          <GameButton title={t.ok} variant="secondary" onPress={closeUiModal} />
         ) : (
-          <View style={styles.modalRow}>
+          <View style={[styles.modalRow, dir.row]}>
             <GameButton
-              title={uiModalCancelText}
+              title={uiModalCancelText || t.cancel}
               variant="secondary"
               size="md"
               onPress={closeUiModal}
               style={styles.modalBtn}
             />
             <GameButton
-              title={uiModalConfirmText}
+              title={uiModalConfirmText || t.yes}
               variant={danger ? "danger" : "primary"}
               size="md"
               style={styles.modalBtn}
@@ -448,24 +448,24 @@ export default function GameApp() {
         visible={playerEditModalOpen}
         onRequestClose={closePlayerEditModal}
         onShow={focusEditInput}
-        title="تعديل اللاعب"
+        title={t.editPlayerTitle}
         accent={colors.blue}
       >
         <TextInput
           ref={editInputRef}
           value={editPlayerName}
           onChangeText={setEditPlayerName}
-          placeholder="اسم اللاعب"
+          placeholder={t.playerNamePlaceholder}
           placeholderTextColor={colors.textFaint}
           style={styles.editInput}
-          textAlign="right"
+          textAlign={dir.textAlign}
           autoFocus={false}
           onSubmitEditing={handleSavePlayerName}
           submitBehavior="submit"
         />
-        <View style={styles.modalRow}>
+        <View style={[styles.modalRow, dir.row]}>
           <GameButton
-            title="حذف"
+            title={t.delete}
             variant="danger"
             size="md"
             style={styles.modalBtn}
@@ -475,14 +475,14 @@ export default function GameApp() {
             }}
           />
           <GameButton
-            title="حفظ"
+            title={t.save}
             size="md"
             style={styles.modalBtn}
             onPress={handleSavePlayerName}
           />
         </View>
         <Pressable onPress={closePlayerEditModal} style={styles.cancelRow}>
-          <AppText style={styles.cancelText}>إلغاء</AppText>
+          <AppText style={styles.cancelText}>{t.cancel}</AppText>
         </Pressable>
       </GameModal>
     </View>
@@ -506,7 +506,6 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
   },
   modalRow: {
-    flexDirection: "row-reverse",
     gap: space.md,
     marginTop: space.sm,
   },

@@ -17,6 +17,7 @@ import CategoryGroup from "../components/CategoryGroup";
 import GameButton from "../components/GameButton";
 import ScreenBackground from "../components/ScreenBackground";
 import ScreenHeader from "../components/ScreenHeader";
+import { useI18n } from "../i18n";
 import { alpha, colors, font, motion, radius, shadows, size, space } from "../theme";
 import { play } from "../sound";
 
@@ -36,6 +37,7 @@ export default function CategoriesScreen({
   onNext,
 }: Props) {
   const insets = useSafeAreaInsets();
+  const { t, dir } = useI18n();
   const [openGroup, setOpenGroup] = useState<string | null>(CATEGORY_GROUPS[0].key);
 
   const totalOn = useMemo(
@@ -55,14 +57,20 @@ export default function CategoriesScreen({
   return (
     <ScreenBackground tint="neutral">
       <ScreenHeader
-        title="اختر الفئات"
-        subtitle="كل فئة تفتحها تزيد تنوّع الكلمات"
-        step="١ / ٢"
+        title={t.categoriesTitle}
+        subtitle={t.categoriesSubtitle}
+        step={t.stepCategories}
         onBack={onBack}
       />
 
-      <View style={styles.summaryRow}>
-        <View style={[styles.countPill, totalOn > 0 && { borderColor: alpha(colors.green, 0.5) }]}>
+      <View style={[styles.summaryRow, dir.row]}>
+        <View
+          style={[
+            styles.countPill,
+            dir.row,
+            totalOn > 0 && { borderColor: alpha(colors.green, 0.5) },
+          ]}
+        >
           <Ionicons
             name="albums"
             size={14}
@@ -73,7 +81,7 @@ export default function CategoriesScreen({
           </AppText>
         </View>
 
-        <View style={styles.bulkRow}>
+        <View style={[styles.bulkRow, dir.row]}>
           <Pressable
             hitSlop={8}
             onPress={() => {
@@ -81,7 +89,7 @@ export default function CategoriesScreen({
               onToggleMany(allKeys, true);
             }}
           >
-            <AppText style={styles.bulkText}>تحديد الكل</AppText>
+            <AppText style={styles.bulkText}>{t.selectAll}</AppText>
           </Pressable>
           <AppText style={styles.bulkSep}>·</AppText>
           <Pressable
@@ -91,7 +99,7 @@ export default function CategoriesScreen({
               onToggleMany(allKeys, false);
             }}
           >
-            <AppText style={styles.bulkText}>مسح الكل</AppText>
+            <AppText style={styles.bulkText}>{t.clearAll}</AppText>
           </Pressable>
         </View>
       </View>
@@ -121,8 +129,8 @@ export default function CategoriesScreen({
 
       <View style={[styles.bottomBar, { paddingBottom: insets.bottom + space.lg }]}>
         <GameButton
-          title={totalOn === 0 ? "اختر فئة واحدة على الأقل" : "التالي · اللاعبون"}
-          icon={totalOn === 0 ? undefined : "arrow-back"}
+          title={totalOn === 0 ? t.pickAtLeastOne : t.nextPlayers}
+          icon={totalOn === 0 ? undefined : dir.icons.forward}
           disabled={totalOn === 0}
           onPress={onNext}
         />
@@ -133,14 +141,12 @@ export default function CategoriesScreen({
 
 const styles = StyleSheet.create({
   summaryRow: {
-    flexDirection: "row-reverse",
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: space.lg,
     paddingBottom: space.md,
   },
   countPill: {
-    flexDirection: "row-reverse",
     alignItems: "center",
     gap: space.xs,
     paddingHorizontal: space.md,
@@ -156,7 +162,6 @@ const styles = StyleSheet.create({
     color: colors.textFaint,
   },
   bulkRow: {
-    flexDirection: "row-reverse",
     alignItems: "center",
     gap: space.sm,
   },

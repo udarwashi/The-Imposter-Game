@@ -13,6 +13,7 @@ import Animated, {
   useSharedValue,
   withTiming,
 } from "react-native-reanimated";
+import { useI18n } from "../i18n";
 import { alpha, colors, font, motion, radius, size, space } from "../theme";
 import { play } from "../sound";
 import AppText from "./AppText";
@@ -25,6 +26,7 @@ type Props = {
 };
 
 export default function SelectPill({ label, selected, accent, onToggle }: Props) {
+  const { dir } = useI18n();
   const pressed = useSharedValue(0);
 
   const animStyle = useAnimatedStyle(() => ({
@@ -49,6 +51,7 @@ export default function SelectPill({ label, selected, accent, onToggle }: Props)
       <Animated.View
         style={[
           styles.pill,
+          dir.row,
           {
             backgroundColor: selected ? alpha(accent, 0.16) : colors.surfaceLo,
             borderColor: selected ? alpha(accent, 0.75) : colors.hairline,
@@ -84,7 +87,7 @@ export default function SelectPill({ label, selected, accent, onToggle }: Props)
 
 const styles = StyleSheet.create({
   pill: {
-    flexDirection: "row-reverse",
+    // flexDirection comes from `dir.row`.
     alignItems: "center",
     gap: space.sm,
     paddingVertical: 9,

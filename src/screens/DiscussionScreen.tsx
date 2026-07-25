@@ -12,13 +12,15 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import AppText from "../components/AppText";
 import GameButton from "../components/GameButton";
 import ScreenBackground from "../components/ScreenBackground";
+import { useI18n } from "../i18n";
 import { alpha, colors, font, radius, shadows, size, space } from "../theme";
 import { play } from "../sound";
 
 type Props = {
   playerNames: string[];
   imposterName: string;
-  categoryNameAr: string;
+  /** Already resolved to the current language by the caller. */
+  categoryName: string;
   secretWord: string;
   showImposter: boolean;
   onRevealImposter: () => void;
@@ -29,7 +31,7 @@ type Props = {
 export default function DiscussionScreen({
   playerNames,
   imposterName,
-  categoryNameAr,
+  categoryName,
   secretWord,
   showImposter,
   onRevealImposter,
@@ -37,6 +39,7 @@ export default function DiscussionScreen({
   onBackToSetup,
 }: Props) {
   const insets = useSafeAreaInsets();
+  const { t, dir } = useI18n();
 
   useEffect(() => {
     if (showImposter) play("win");
@@ -51,8 +54,8 @@ export default function DiscussionScreen({
         ]}
       >
         <View style={styles.titleBlock}>
-          <AppText style={styles.stage}>مرحلة التصويت</AppText>
-          <AppText style={styles.title}>مين المندس؟</AppText>
+          <AppText style={styles.stage}>{t.votingStage}</AppText>
+          <AppText style={styles.title}>{t.whoIsImposter}</AppText>
         </View>
 
         <View style={styles.center}>
@@ -61,16 +64,14 @@ export default function DiscussionScreen({
               <View style={styles.iconRing}>
                 <Ionicons name="chatbubbles" size={30} color={colors.gold} />
               </View>
-              <AppText style={styles.note}>
-                كل اللاعبين شافوا أدوارهم. تناقشوا، وصوّتوا على اللي تشكّون فيه.
-              </AppText>
+              <AppText style={styles.note}>{t.discussionNote}</AppText>
 
               <View style={styles.divider} />
 
-              <AppText style={styles.label}>الفئة</AppText>
-              <AppText style={styles.category}>{categoryNameAr}</AppText>
+              <AppText style={styles.label}>{t.categoryLabel}</AppText>
+              <AppText style={styles.category}>{categoryName}</AppText>
 
-              <View style={styles.namesWrap}>
+              <View style={[styles.namesWrap, dir.row]}>
                 {playerNames.map((n, i) => (
                   <View key={`${n}-${i}`} style={styles.nameChip}>
                     <AppText style={styles.nameChipText} numberOfLines={1}>
@@ -85,7 +86,7 @@ export default function DiscussionScreen({
               entering={FadeInDown.duration(320)}
               style={[styles.card, shadows.card, { borderColor: alpha(colors.red, 0.6) }]}
             >
-              <AppText style={styles.label}>المندس كان</AppText>
+              <AppText style={styles.label}>{t.imposterWas}</AppText>
               <Animated.View entering={ZoomIn.delay(100).duration(340)} style={styles.revealBox}>
                 <Ionicons name="alert-circle" size={26} color={colors.redLight} />
                 <AppText style={styles.imposterName} numberOfLines={2}>
@@ -94,7 +95,7 @@ export default function DiscussionScreen({
               </Animated.View>
 
               <View style={styles.divider} />
-              <AppText style={styles.label}>والكلمة كانت</AppText>
+              <AppText style={styles.label}>{t.wordWas}</AppText>
               <AppText style={styles.word}>{secretWord}</AppText>
             </Animated.View>
           )}
@@ -102,11 +103,16 @@ export default function DiscussionScreen({
 
         <View style={styles.actions}>
           {!showImposter ? (
-            <GameButton title="عرض المندس" icon="eye" variant="danger" onPress={onRevealImposter} />
+            <GameButton
+              title={t.revealImposter}
+              icon="eye"
+              variant="danger"
+              onPress={onRevealImposter}
+            />
           ) : (
-            <GameButton title="جولة جديدة" icon="refresh" onPress={onNewRound} />
+            <GameButton title={t.newRound} icon="refresh" onPress={onNewRound} />
           )}
-          <GameButton title="رجوع للاعبين" variant="ghost" size="sm" onPress={onBackToSetup} />
+          <GameButton title={t.backToPlayers} variant="ghost" size="sm" onPress={onBackToSetup} />
         </View>
       </View>
     </ScreenBackground>
@@ -185,7 +191,6 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   namesWrap: {
-    flexDirection: "row-reverse",
     flexWrap: "wrap",
     justifyContent: "center",
     gap: space.sm,

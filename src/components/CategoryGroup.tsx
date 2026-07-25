@@ -21,6 +21,8 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import type { CategoryGroup as Group } from "../../assets/data/categories";
+import { labelOf } from "../content";
+import { useI18n } from "../i18n";
 import { alpha, colors, font, motion, radius, shadows, size, space } from "../theme";
 import { play } from "../sound";
 import AppText from "./AppText";
@@ -45,6 +47,7 @@ export default function CategoryGroup({
   onToggleItem,
   onToggleAll,
 }: Props) {
+  const { lang, t, dir } = useI18n();
   const [bodyHeight, setBodyHeight] = useState(0);
   const open = useSharedValue(expanded ? 1 : 0);
 
@@ -85,16 +88,18 @@ export default function CategoryGroup({
           play("tap");
           onToggleExpanded();
         }}
-        style={styles.header}
+        style={[styles.header, dir.row]}
       >
         <View style={[styles.iconBadge, { backgroundColor: alpha(group.accent, 0.18), borderColor: alpha(group.accent, 0.45) }]}>
           <Ionicons name={group.icon} size={19} color={group.accent} />
         </View>
 
-        <View style={styles.titleWrap}>
-          <AppText style={styles.title}>{group.nameAr}</AppText>
-          <AppText style={[styles.count, onCount > 0 && { color: group.accent }]}>
-            {onCount} من {keys.length}
+        <View style={[styles.titleWrap, dir.alignStart]}>
+          <AppText style={[styles.title, dir.textStart]}>{labelOf(group, lang)}</AppText>
+          <AppText
+            style={[styles.count, dir.textStart, onCount > 0 && { color: group.accent }]}
+          >
+            {t.ofTotal(onCount, keys.length)}
           </AppText>
         </View>
 
@@ -128,11 +133,11 @@ export default function CategoryGroup({
       </Pressable>
 
       <Animated.View style={[styles.bodyClip, bodyStyle]}>
-        <View style={styles.body} onLayout={onBodyLayout}>
+        <View style={[styles.body, dir.row]} onLayout={onBodyLayout}>
           {group.items.map((item) => (
             <SelectPill
               key={item.key}
-              label={item.nameAr}
+              label={labelOf(item, lang)}
               accent={group.accent}
               selected={!!selected[item.key]}
               onToggle={() => onToggleItem(item.key)}
@@ -152,7 +157,6 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   header: {
-    flexDirection: "row-reverse",
     alignItems: "center",
     gap: space.md,
     paddingVertical: space.md,
@@ -168,20 +172,17 @@ const styles = StyleSheet.create({
   },
   titleWrap: {
     flex: 1,
-    alignItems: "flex-end",
     gap: 2,
   },
   title: {
     fontFamily: font.bold,
     fontSize: size.h3,
     color: colors.text,
-    textAlign: "right",
   },
   count: {
     fontFamily: font.regular,
     fontSize: size.tiny,
     color: colors.textFaint,
-    textAlign: "right",
   },
   allCheck: {
     width: 26,
@@ -204,7 +205,6 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     top: 0,
-    flexDirection: "row-reverse",
     flexWrap: "wrap",
     gap: space.sm,
     paddingHorizontal: space.md,

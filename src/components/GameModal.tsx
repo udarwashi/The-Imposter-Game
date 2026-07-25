@@ -11,6 +11,7 @@
 import React from "react";
 import { Modal, Pressable, StyleSheet, View } from "react-native";
 import Animated, { FadeIn, FadeInDown } from "react-native-reanimated";
+import { useI18n } from "../i18n";
 import { colors, font, radius, shadows, size, space } from "../theme";
 import AppText from "./AppText";
 
@@ -37,6 +38,8 @@ export default function GameModal({
   onShow,
   children,
 }: Props) {
+  const { dir } = useI18n();
+
   return (
     <Modal
       visible={visible}
@@ -56,8 +59,8 @@ export default function GameModal({
           style={[styles.card, shadows.card]}
         >
           <View style={[styles.accentBar, { backgroundColor: accent }]} />
-          <AppText style={styles.title}>{title}</AppText>
-          {body ? <AppText style={styles.body}>{body}</AppText> : null}
+          <AppText style={[styles.title, dir.textStart]}>{title}</AppText>
+          {body ? <AppText style={[styles.body, dir.textStart]}>{body}</AppText> : null}
           {children}
         </Animated.View>
       </Animated.View>
@@ -96,13 +99,11 @@ const styles = StyleSheet.create({
     fontFamily: font.bold,
     color: colors.text,
     fontSize: size.h2,
-    textAlign: "right",
   },
   body: {
     fontFamily: font.regular,
     color: colors.textMuted,
     fontSize: size.body,
     lineHeight: 22,
-    textAlign: "right",
   },
 });

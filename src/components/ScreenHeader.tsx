@@ -1,12 +1,15 @@
 /**
  * Shared screen header: a back chevron, a title block, and an optional slot.
- * Laid out RTL, so "back" points right.
+ *
+ * Laid out in reading order, so "back" points right in Arabic and left in
+ * English — see `src/i18n/direction.ts`.
  */
 
 import { Ionicons } from "@expo/vector-icons";
 import React from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useI18n } from "../i18n";
 import { colors, font, radius, size, space } from "../theme";
 import { play } from "../sound";
 import AppText from "./AppText";
@@ -17,20 +20,21 @@ type Props = {
   /** Omit to hide the back button. */
   onBack?: () => void;
   right?: React.ReactNode;
-  /** Small step indicator, e.g. "١ / ٢". */
+  /** Small step indicator, e.g. "١ / ٢" or "1 / 2". */
   step?: string;
 };
 
 export default function ScreenHeader({ title, subtitle, onBack, right, step }: Props) {
   const insets = useSafeAreaInsets();
+  const { t, dir } = useI18n();
 
   return (
     <View style={[styles.root, { paddingTop: insets.top + space.md }]}>
-      <View style={styles.row}>
+      <View style={[styles.row, dir.row]}>
         {onBack ? (
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="رجوع"
+            accessibilityLabel={t.a11yBack}
             hitSlop={10}
             onPress={() => {
               play("back");
@@ -38,25 +42,27 @@ export default function ScreenHeader({ title, subtitle, onBack, right, step }: P
             }}
             style={styles.iconBtn}
           >
-            <Ionicons name="chevron-forward" size={22} color={colors.text} />
+            <Ionicons name={dir.icons.back} size={22} color={colors.text} />
           </Pressable>
         ) : (
           <View style={styles.iconBtn} />
         )}
 
-        <View style={styles.titleWrap}>
-          <View style={styles.titleRow}>
-            <AppText style={styles.title}>{title}</AppText>
+        <View style={[styles.titleWrap, dir.alignStart]}>
+          <View style={[styles.titleRow, dir.row]}>
+            <AppText style={[styles.title, dir.textStart]}>{title}</AppText>
             {step ? (
               <View style={styles.stepPill}>
                 <AppText style={styles.stepText}>{step}</AppText>
               </View>
             ) : null}
           </View>
-          {subtitle ? <AppText style={styles.subtitle}>{subtitle}</AppText> : null}
+          {subtitle ? (
+            <AppText style={[styles.subtitle, dir.textStart]}>{subtitle}</AppText>
+          ) : null}
         </View>
 
-        <View style={styles.rightSlot}>{right}</View>
+        <View style={[styles.rightSlot, dir.alignEnd]}>{right}</View>
       </View>
     </View>
   );
@@ -68,7 +74,6 @@ const styles = StyleSheet.create({
     paddingBottom: space.md,
   },
   row: {
-    flexDirection: "row-reverse",
     alignItems: "center",
     gap: space.md,
   },
@@ -84,11 +89,9 @@ const styles = StyleSheet.create({
   },
   titleWrap: {
     flex: 1,
-    alignItems: "flex-end",
     gap: 2,
   },
   titleRow: {
-    flexDirection: "row-reverse",
     alignItems: "center",
     gap: space.sm,
   },
@@ -96,7 +99,6 @@ const styles = StyleSheet.create({
     fontFamily: font.black,
     fontSize: size.h2,
     color: colors.text,
-    textAlign: "right",
   },
   stepPill: {
     paddingHorizontal: space.sm,
@@ -115,10 +117,8 @@ const styles = StyleSheet.create({
     fontFamily: font.regular,
     fontSize: size.small,
     color: colors.textMuted,
-    textAlign: "right",
   },
   rightSlot: {
     minWidth: 40,
-    alignItems: "flex-start",
   },
 });

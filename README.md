@@ -167,7 +167,52 @@ Output: `android/app/build/outputs/bundle/release/app-release.aab`
    ```
 5. Rebuild with `./gradlew bundleRelease`.
 
+---
 
+## Languages
+
+The game plays in **Arabic or English**. The toggle is the `EN` / `ع` button in the top-left of the home
+screen; the choice is saved and restored on the next launch. Arabic is the default.
+
+Switching is instant and safe mid-round — a round stores the category key and the whole word pair, so the
+card re-labels itself instead of the round having to restart. The app never calls `I18nManager.forceRTL`
+(that needs an app restart to take effect); instead the base direction stays LTR and every direction-sensitive
+style is picked from the current language in `src/i18n/direction.ts`.
+
+### Where the text lives
+
+| What | File |
+| --- | --- |
+| Every piece of UI copy, both languages | `src/i18n/strings.ts` |
+| Direction-aware styles and flipped icons | `src/i18n/direction.ts` |
+| Language state, persistence, `useI18n()` | `src/i18n/index.tsx` |
+| Category names (`nameAr` + `nameEn`) | `assets/data/categories.ts` |
+| The word bank | `assets/data/words.json` |
+
+`strings.ts` exports a `Strings` type that both locales must satisfy, so adding a key is a **type error**
+until you have written it in Arabic *and* English.
+
+### The word bank
+
+Each entry is an `[arabic, english]` pair:
+
+```json
+{
+  "animals": [
+    ["أسد", "Lion"],
+    ["نمر", "Tiger"]
+  ]
+}
+```
+
+Both halves are required. After editing either data file, run:
+
+```bash
+npm run check:content
+```
+
+It checks that the tree and the word lists agree, that every category has both labels, that no list is too
+short to play, and that neither language has duplicates or empty entries inside a list.
 
 ## To Do
 

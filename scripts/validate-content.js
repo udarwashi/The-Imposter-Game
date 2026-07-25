@@ -1,10 +1,14 @@
 /**
  * Checks the category tree and the word lists agree, and that the words are
- * usable in-game.
+ * usable in-game — in BOTH languages.
  *
  *   node scripts/validate-content.js
  *
  * Exits non-zero on any error, so it can gate a commit.
+ *
+ * `words.json` stores one `["<arabic>", "<english>"]` pair per entry. Both
+ * halves are checked independently: a missing English word is just as broken as
+ * a missing Arabic one, because either can end up on a player's card.
  *
  * `categories.ts` is TypeScript, so rather than compile it we scrape the leaf
  * keys out of the source. The tree is a plain literal with one `key: "..."` per
@@ -30,21 +34,56 @@ const warnings = [];
 const src = fs.readFileSync(CATS_PATH, "utf8");
 const words = JSON.parse(fs.readFileSync(WORDS_PATH, "utf8"));
 
-// Group keys appear as `key: "x",` followed by `nameAr`, then `icon`.
-// Leaf keys appear inside `items: [...]`. Distinguish by grabbing the items
-// blocks first, then pulling keys from within them.
+// Group keys appear as `key: "x",` followed by `nameAr`, then `nameEn`, then
+// `icon`. Leaf keys appear inside `items: [...]`. Distinguish by grabbing the
+// items blocks first, then pulling keys from within them.
 const itemBlocks = [...src.matchAll(/items:\s*\[([\s\S]*?)\n\s{4}\],/g)].map((m) => m[1]);
 if (itemBlocks.length === 0) {
   errors.push("could not parse any `items:` blocks out of categories.ts — has its shape changed?");
 }
 
 const leafKeys = [];
+const leafNames = new Map(); // key -> { nameAr, nameEn }
 for (const block of itemBlocks) {
-  for (const m of block.matchAll(/key:\s*"([^"]+)"/g)) leafKeys.push(m[1]);
+  for (const m of block.matchAll(
+    /key:\s*"([^"]+)",\s*nameAr:\s*"([^"]*)",\s*nameEn:\s*"([^"]*)"/g
+  )) {
+    leafKeys.push(m[1]);
+    leafNames.set(m[1], { nameAr: m[2], nameEn: m[3] });
+  }
+  // Anything with a key but no matching nameAr+nameEn pair is a half-translated
+  // entry, which the regex above would silently skip.
+  for (const m of block.matchAll(/key:\s*"([^"]+)"/g)) {
+    if (!leafNames.has(m[1])) {
+      errors.push(`categories.ts leaf "${m[1]}" is missing nameAr and/or nameEn (or they are out of order)`);
+      leafKeys.push(m[1]);
+    }
+  }
 }
 
 const groupCount = itemBlocks.length;
 console.log(`Parsed ${groupCount} groups / ${leafKeys.length} leaf categories from categories.ts`);
+
+// Every group needs both labels too. Comment lines are allowed between them.
+const COMMENTS = String.raw`(?:\s*//[^\n]*\n)*`;
+const groupHeads = [
+  ...src.matchAll(
+    new RegExp(
+      String.raw`\n {4}key:\s*"([^"]+)",\n` + COMMENTS + String.raw`\s*nameAr:\s*"([^"]*)",\n` + COMMENTS + String.raw`\s*nameEn:\s*"([^"]*)",`,
+      "g"
+    )
+  ),
+];
+if (groupHeads.length !== groupCount) {
+  errors.push(
+    `${groupCount} groups have items but only ${groupHeads.length} have both nameAr and nameEn`
+  );
+}
+
+for (const [key, names] of leafNames) {
+  if (!names.nameAr.trim()) errors.push(`category "${key}" has an empty nameAr`);
+  if (!names.nameEn.trim()) errors.push(`category "${key}" has an empty nameEn`);
+}
 
 // ---------------------------------------------------------------- cross-checks
 
@@ -63,8 +102,15 @@ for (const k of Object.keys(words)) {
 
 // ------------------------------------------------------------- per-list checks
 
+const ARABIC = /[؀-ۿݐ-ݿ]/;
 const LATIN = /[A-Za-z]/;
 const DIGIT = /[0-9٠-٩]/;
+
+/** Index of each language inside a pair, matching `src/content.ts`. */
+const LANGS = [
+  { name: "ar", index: 0 },
+  { name: "en", index: 1 },
+];
 
 for (const [key, list] of Object.entries(words)) {
   if (!Array.isArray(list)) {
@@ -77,26 +123,49 @@ for (const [key, list] of Object.entries(words)) {
     warnings.push(`"${key}" has only ${list.length} words (want >= ${MIN_WORDS})`);
   }
 
-  const seen = new Map();
-  list.forEach((w, i) => {
-    if (typeof w !== "string") {
-      errors.push(`"${key}"[${i}] is not a string`);
-      return;
-    }
-    const trimmed = w.trim();
-    if (trimmed !== w) warnings.push(`"${key}": "${w}" has surrounding whitespace`);
-    if (!trimmed) {
-      errors.push(`"${key}"[${i}] is empty`);
-      return;
-    }
-    if (seen.has(trimmed)) {
-      errors.push(`"${key}" has duplicate word "${trimmed}"`);
-    }
-    seen.set(trimmed, i);
+  // Duplicates are tracked per language: two different Arabic words are allowed
+  // to be near-synonyms, but they must not collapse to the same English card.
+  const seen = { ar: new Map(), en: new Map() };
 
-    if (LATIN.test(trimmed)) warnings.push(`"${key}": "${trimmed}" contains Latin letters`);
-    if (DIGIT.test(trimmed)) warnings.push(`"${key}": "${trimmed}" contains digits`);
-    if (trimmed.length > 30) warnings.push(`"${key}": "${trimmed}" is long (${trimmed.length} chars)`);
+  list.forEach((pair, i) => {
+    if (!Array.isArray(pair) || pair.length !== 2) {
+      errors.push(`"${key}"[${i}] is not an [arabic, english] pair`);
+      return;
+    }
+
+    for (const { name, index } of LANGS) {
+      const w = pair[index];
+      if (typeof w !== "string") {
+        errors.push(`"${key}"[${i}].${name} is not a string`);
+        continue;
+      }
+      const trimmed = w.trim();
+      if (trimmed !== w) warnings.push(`"${key}".${name}: "${w}" has surrounding whitespace`);
+      if (!trimmed) {
+        errors.push(`"${key}"[${i}].${name} is empty`);
+        continue;
+      }
+      if (seen[name].has(trimmed)) {
+        errors.push(`"${key}" has duplicate ${name} word "${trimmed}"`);
+      }
+      seen[name].set(trimmed, i);
+
+      if (DIGIT.test(trimmed)) warnings.push(`"${key}".${name}: "${trimmed}" contains digits`);
+      if (trimmed.length > 34) warnings.push(`"${key}".${name}: "${trimmed}" is long (${trimmed.length} chars)`);
+    }
+
+    // Script sanity: the Arabic half must not be plain Latin, and the English
+    // half must not contain Arabic script at all.
+    const [ar, en] = pair;
+    if (typeof ar === "string" && LATIN.test(ar)) {
+      warnings.push(`"${key}".ar: "${ar}" contains Latin letters`);
+    }
+    if (typeof en === "string" && ARABIC.test(en)) {
+      errors.push(`"${key}".en: "${en}" contains Arabic script`);
+    }
+    if (typeof en === "string" && en.trim() && !LATIN.test(en)) {
+      warnings.push(`"${key}".en: "${en}" has no Latin letters`);
+    }
   });
 }
 
@@ -108,7 +177,7 @@ const shortest = Object.entries(words)
   .sort((a, b) => a[1].length - b[1].length)
   .slice(0, 5);
 
-console.log(`${Object.keys(words).length} lists, ${total} words total`);
+console.log(`${Object.keys(words).length} lists, ${total} bilingual pairs (${total * 2} words)`);
 console.log(`shortest: ${shortest.map(([k, l]) => `${k}(${l.length})`).join(", ")}`);
 
 if (warnings.length) {

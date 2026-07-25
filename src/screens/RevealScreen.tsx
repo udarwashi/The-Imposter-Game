@@ -14,6 +14,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import AppText from "../components/AppText";
 import GameButton from "../components/GameButton";
 import ScreenBackground from "../components/ScreenBackground";
+import { useI18n } from "../i18n";
 import { alpha, colors, font, radius, shadows, size, space } from "../theme";
 import { play } from "../sound";
 
@@ -24,7 +25,8 @@ type Props = {
   revealed: boolean[];
   step: "name" | "secret";
   isImposter: boolean;
-  categoryNameAr: string;
+  /** Already resolved to the current language by the caller. */
+  categoryName: string;
   secretWord: string;
   onShowSecret: () => void;
   onNext: () => void;
@@ -38,13 +40,14 @@ export default function RevealScreen({
   revealed,
   step,
   isImposter,
-  categoryNameAr,
+  categoryName,
   secretWord,
   onShowSecret,
   onNext,
   onEndRound,
 }: Props) {
   const insets = useSafeAreaInsets();
+  const { t, dir } = useI18n();
   const secret = step === "secret";
 
   // The SAME sound and haptic for every player, deliberately.
@@ -66,7 +69,7 @@ export default function RevealScreen({
         ]}
       >
         {/* Progress dots — one per player, filled as they finish. */}
-        <View style={styles.progress}>
+        <View style={[styles.progress, dir.row]}>
           {Array.from({ length: playerCount }, (_, i) => (
             <View
               key={i}
@@ -79,9 +82,7 @@ export default function RevealScreen({
           ))}
         </View>
 
-        <AppText style={styles.stage}>
-          مرحلة الكشف · {playerIndex + 1} من {playerCount}
-        </AppText>
+        <AppText style={styles.stage}>{t.revealStage(playerIndex + 1, playerCount)}</AppText>
 
         <View style={styles.center}>
           {!secret ? (
@@ -92,19 +93,17 @@ export default function RevealScreen({
             >
               <View style={styles.avatarBig}>
                 <AppText style={styles.avatarBigText}>
-                  {playerName.trim().charAt(0) || "؟"}
+                  {playerName.trim().charAt(0) || t.unknownInitial}
                 </AppText>
               </View>
-              <AppText style={styles.label}>الدور على</AppText>
+              <AppText style={styles.label}>{t.upNext}</AppText>
               <AppText style={styles.playerName} numberOfLines={2}>
                 {playerName}
               </AppText>
               <View style={styles.divider} />
-              <View style={styles.noteRow}>
+              <View style={[styles.noteRow, dir.row]}>
                 <Ionicons name="phone-portrait-outline" size={15} color={colors.textMuted} />
-                <AppText style={styles.note}>
-                  سلّم الجوال لهذا اللاعب، واضغط عندما يكون جاهزًا
-                </AppText>
+                <AppText style={styles.note}>{t.passPhoneHint}</AppText>
               </View>
             </Animated.View>
           ) : (
@@ -117,12 +116,12 @@ export default function RevealScreen({
                 isImposter && { borderColor: alpha(colors.red, 0.6) },
               ]}
             >
-              <AppText style={styles.label}>اللاعب</AppText>
+              <AppText style={styles.label}>{t.playerLabel}</AppText>
               <AppText style={styles.playerNameSmall}>{playerName}</AppText>
 
-              <View style={styles.chipRow}>
+              <View style={[styles.chipRow, dir.row]}>
                 <Ionicons name="albums-outline" size={13} color={colors.textMuted} />
-                <AppText style={styles.category}>{categoryNameAr}</AppText>
+                <AppText style={styles.category}>{categoryName}</AppText>
               </View>
 
               <Animated.View
@@ -132,37 +131,32 @@ export default function RevealScreen({
                 {isImposter ? (
                   <>
                     <Ionicons name="eye-off" size={30} color={colors.redLight} />
-                    <AppText style={[styles.word, styles.wordImposter]}>أنت المندس</AppText>
-                    <AppText style={styles.imposterHint}>
-                      لا تعرف الكلمة — جاري وحاول ما ينكشف عليك
+                    <AppText style={[styles.word, styles.wordImposter]}>
+                      {t.youAreImposter}
                     </AppText>
+                    <AppText style={styles.imposterHint}>{t.imposterHint}</AppText>
                   </>
                 ) : (
                   <AppText style={styles.word}>{secretWord}</AppText>
                 )}
               </Animated.View>
 
-              <AppText style={styles.note}>احفظها، ثم اضغط “التالي” وسلّم الجوال للي بعدك</AppText>
+              <AppText style={styles.note}>{t.memoriseHint}</AppText>
             </Animated.View>
           )}
         </View>
 
         <View style={styles.actions}>
           {!secret ? (
-            <GameButton title="عرض الكلمة" icon="eye" onPress={onShowSecret} />
+            <GameButton title={t.showWord} icon="eye" onPress={onShowSecret} />
           ) : (
             <GameButton
-              title={playerIndex + 1 >= playerCount ? "ابدأ النقاش" : "التالي"}
-              icon="arrow-back"
+              title={playerIndex + 1 >= playerCount ? t.startDiscussion : t.next}
+              icon={dir.icons.forward}
               onPress={onNext}
             />
           )}
-          <GameButton
-            title="إنهاء الجولة"
-            variant="ghost"
-            size="sm"
-            onPress={onEndRound}
-          />
+          <GameButton title={t.endRound} variant="ghost" size="sm" onPress={onEndRound} />
         </View>
       </View>
     </ScreenBackground>
@@ -175,7 +169,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.xl,
   },
   progress: {
-    flexDirection: "row-reverse",
     justifyContent: "center",
     gap: 6,
     paddingBottom: space.sm,
@@ -250,7 +243,6 @@ const styles = StyleSheet.create({
     marginVertical: space.md,
   },
   noteRow: {
-    flexDirection: "row-reverse",
     alignItems: "center",
     gap: space.sm,
   },
@@ -263,7 +255,6 @@ const styles = StyleSheet.create({
     flexShrink: 1,
   },
   chipRow: {
-    flexDirection: "row-reverse",
     alignItems: "center",
     gap: space.xs,
     paddingHorizontal: space.md,

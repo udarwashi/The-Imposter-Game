@@ -22,6 +22,7 @@ import Animated, {
   useSharedValue,
   withTiming,
 } from "react-native-reanimated";
+import { useI18n } from "../i18n";
 import { colors, font, motion, radius, shadows, size, space } from "../theme";
 import { play, SoundName } from "../sound";
 import AppText from "./AppText";
@@ -95,6 +96,7 @@ export default function GameButton({
   sound,
   style,
 }: Props) {
+  const { dir } = useI18n();
   const pressed = useSharedValue(0);
   const lip = LIP[sz];
 
@@ -143,6 +145,7 @@ export default function GameButton({
             end={{ x: 0, y: 1 }}
             style={[
               styles.face,
+              dir.row,
               {
                 borderRadius: sz === "sm" ? radius.sm : radius.md,
                 paddingVertical: PADDING[sz].v,
@@ -182,7 +185,8 @@ const styles = StyleSheet.create({
     width: "100%",
   },
   face: {
-    flexDirection: "row-reverse",
+    // flexDirection comes from `dir.row` — the icon leads the label in both
+    // reading directions.
     alignItems: "center",
     justifyContent: "center",
     gap: space.sm,

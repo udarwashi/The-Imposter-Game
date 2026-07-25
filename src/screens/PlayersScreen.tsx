@@ -15,6 +15,7 @@ import GameButton from "../components/GameButton";
 import ReorderableList, { ReorderableRowInfo } from "../components/ReorderableList";
 import ScreenBackground from "../components/ScreenBackground";
 import ScreenHeader from "../components/ScreenHeader";
+import { useI18n } from "../i18n";
 import { alpha, colors, font, radius, shadows, size, space } from "../theme";
 import { play } from "../sound";
 
@@ -61,6 +62,7 @@ export default function PlayersScreen({
   onStart,
 }: Props) {
   const insets = useSafeAreaInsets();
+  const { t, dir } = useI18n();
   const [barHeight, setBarHeight] = useState(0);
 
   const enough = players.length >= MIN_PLAYERS;
@@ -72,6 +74,7 @@ export default function PlayersScreen({
         <View
           style={[
             styles.row,
+            dir.row,
             isDragging && {
               borderColor: alpha(colors.green, 0.7),
               backgroundColor: colors.surfaceHi,
@@ -86,20 +89,20 @@ export default function PlayersScreen({
             ]}
           >
             <AppText style={[styles.avatarText, { color: accent }]}>
-              {item.name.trim().charAt(0) || "؟"}
+              {item.name.trim().charAt(0) || t.unknownInitial}
             </AppText>
           </View>
 
-          <View style={styles.nameWrap}>
-            <AppText style={styles.name} numberOfLines={1}>
+          <View style={[styles.nameWrap, dir.alignStart]}>
+            <AppText style={[styles.name, dir.textStart]} numberOfLines={1}>
               {item.name}
             </AppText>
-            <AppText style={styles.order}>الدور {index + 1}</AppText>
+            <AppText style={[styles.order, dir.textStart]}>{t.turnNumber(index + 1)}</AppText>
           </View>
 
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={`تعديل ${item.name}`}
+            accessibilityLabel={t.a11yEditPlayer(item.name)}
             hitSlop={6}
             onPress={() => {
               play("tap");
@@ -122,20 +125,20 @@ export default function PlayersScreen({
         </View>
       );
     },
-    [onEditPlayer]
+    [onEditPlayer, t, dir]
   );
 
   const header = (
     <View style={styles.headerBlock}>
       <View style={[styles.addCard, shadows.panel]}>
-        <View style={styles.addRow}>
+        <View style={[styles.addRow, dir.row]}>
           <TextInput
             value={newPlayerName}
             onChangeText={onChangeNewPlayerName}
-            placeholder="اسم اللاعب"
+            placeholder={t.playerNamePlaceholder}
             placeholderTextColor={colors.textFaint}
             style={styles.input}
-            textAlign="right"
+            textAlign={dir.textAlign}
             returnKeyType="done"
             onSubmitEditing={() => {
               if (newPlayerName.trim()) {
@@ -148,7 +151,7 @@ export default function PlayersScreen({
           />
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="إضافة لاعب"
+            accessibilityLabel={t.a11yAddPlayer}
             disabled={!newPlayerName.trim()}
             onPress={() => {
               play("select");
@@ -167,28 +170,26 @@ export default function PlayersScreen({
           </Pressable>
         </View>
 
-        <View style={styles.metaRow}>
-          <View style={styles.metaItem}>
+        <View style={[styles.metaRow, dir.row]}>
+          <View style={[styles.metaItem, dir.row]}>
             <Ionicons name="people" size={13} color={enough ? colors.green : colors.gold} />
             <AppText style={[styles.metaText, { color: enough ? colors.green : colors.gold }]}>
-              {players.length} لاعبين
+              {t.playersCount(players.length)}
             </AppText>
           </View>
-          <View style={styles.metaItem}>
+          <View style={[styles.metaItem, dir.row]}>
             <Ionicons name="albums" size={13} color={colors.textFaint} />
-            <AppText style={styles.metaText}>{categoriesCount} فئة</AppText>
+            <AppText style={styles.metaText}>{t.categoriesCount(categoriesCount)}</AppText>
           </View>
         </View>
       </View>
 
       {players.length > 0 ? (
-        <AppText style={styles.hint}>
-          اسحب من المقبض لتغيير ترتيب الأدوار
-        </AppText>
+        <AppText style={[styles.hint, dir.textStart]}>{t.reorderHint}</AppText>
       ) : (
         <View style={styles.empty}>
           <Ionicons name="person-add-outline" size={30} color={colors.textFaint} />
-          <AppText style={styles.emptyText}>أضف {MIN_PLAYERS} لاعبين على الأقل للبدء</AppText>
+          <AppText style={styles.emptyText}>{t.addAtLeast(MIN_PLAYERS)}</AppText>
         </View>
       )}
     </View>
@@ -197,9 +198,9 @@ export default function PlayersScreen({
   return (
     <ScreenBackground tint="neutral">
       <ScreenHeader
-        title="اللاعبون"
-        subtitle="الترتيب هو ترتيب الكشف"
-        step="٢ / ٢"
+        title={t.playersTitle}
+        subtitle={t.playersSubtitle}
+        step={t.stepPlayers}
         onBack={onBack}
       />
 
@@ -220,7 +221,7 @@ export default function PlayersScreen({
         onLayout={(e) => setBarHeight(e.nativeEvent.layout.height)}
       >
         <GameButton
-          title={enough ? "ابدأ جولة جديدة" : `تحتاج ${MIN_PLAYERS - players.length} لاعبين إضافيين`}
+          title={enough ? t.startRound : t.needMorePlayers(MIN_PLAYERS - players.length)}
           icon={enough ? "play" : undefined}
           disabled={!enough}
           onPress={onStart}
@@ -245,7 +246,6 @@ const styles = StyleSheet.create({
     gap: space.md,
   },
   addRow: {
-    flexDirection: "row-reverse",
     alignItems: "center",
     gap: space.md,
   },
@@ -273,11 +273,9 @@ const styles = StyleSheet.create({
     borderColor: "rgba(255,255,255,0.2)",
   },
   metaRow: {
-    flexDirection: "row-reverse",
     gap: space.lg,
   },
   metaItem: {
-    flexDirection: "row-reverse",
     alignItems: "center",
     gap: space.xs,
   },
@@ -290,7 +288,6 @@ const styles = StyleSheet.create({
     fontFamily: font.regular,
     fontSize: size.tiny,
     color: colors.textFaint,
-    textAlign: "right",
   },
   empty: {
     alignItems: "center",
@@ -306,7 +303,6 @@ const styles = StyleSheet.create({
 
   // Rows must all be the same height for ReorderableList's slot maths.
   row: {
-    flexDirection: "row-reverse",
     alignItems: "center",
     gap: space.md,
     marginHorizontal: space.lg,
@@ -331,19 +327,16 @@ const styles = StyleSheet.create({
   },
   nameWrap: {
     flex: 1,
-    alignItems: "flex-end",
   },
   name: {
     fontFamily: font.bold,
     fontSize: size.body,
     color: colors.text,
-    textAlign: "right",
   },
   order: {
     fontFamily: font.regular,
     fontSize: size.tiny,
     color: colors.textFaint,
-    textAlign: "right",
   },
   editBtn: {
     width: 36,

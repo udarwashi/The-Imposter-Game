@@ -11,8 +11,9 @@ import AppText from "../components/AppText";
 import GameButton from "../components/GameButton";
 import Logo from "../components/Logo";
 import ScreenBackground from "../components/ScreenBackground";
+import { LANG_LABEL, useI18n } from "../i18n";
 import { colors, font, radius, size, space } from "../theme";
-import { startAmbient, stopAmbient, toggleMuted, useMuted } from "../sound";
+import { play, startAmbient, stopAmbient, toggleMuted, useMuted } from "../sound";
 
 type Props = {
   onStart: () => void;
@@ -30,6 +31,10 @@ export default function HomeScreen({
 }: Props) {
   const insets = useSafeAreaInsets();
   const muted = useMuted();
+  const { lang, t, dir, toggleLang } = useI18n();
+
+  /** The toggle is labelled with the language it switches TO, not the current one. */
+  const otherLang = lang === "ar" ? "en" : "ar";
 
   // The pad belongs to this screen only.
   useEffect(() => {
@@ -44,7 +49,7 @@ export default function HomeScreen({
           <Pressable
             accessibilityRole="switch"
             accessibilityState={{ checked: !muted }}
-            accessibilityLabel={muted ? "تشغيل الصوت" : "كتم الصوت"}
+            accessibilityLabel={muted ? t.a11yUnmute : t.a11yMute}
             hitSlop={12}
             onPress={toggleMuted}
             style={styles.iconBtn}
@@ -55,6 +60,19 @@ export default function HomeScreen({
               color={muted ? colors.textFaint : colors.text}
             />
           </Pressable>
+
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t.a11ySwitchLang}
+            hitSlop={12}
+            onPress={() => {
+              play("select");
+              toggleLang();
+            }}
+            style={styles.iconBtn}
+          >
+            <AppText style={styles.langText}>{LANG_LABEL[otherLang]}</AppText>
+          </Pressable>
         </Animated.View>
 
         <View style={styles.center}>
@@ -63,18 +81,16 @@ export default function HomeScreen({
           </Animated.View>
 
           <Animated.View entering={FadeInUp.delay(180).duration(520)} style={styles.titleBlock}>
-            <AppText style={styles.title}>المندس</AppText>
+            <AppText style={styles.title}>{t.appName}</AppText>
             <View style={styles.rule} />
-            <AppText style={styles.tagline}>
-              كلمة واحدة يعرفها الجميع… إلا واحد
-            </AppText>
+            <AppText style={styles.tagline}>{t.tagline}</AppText>
           </Animated.View>
         </View>
 
         <Animated.View entering={FadeInUp.delay(320).duration(520)} style={styles.actions}>
-          <GameButton title="ابدأ اللعب" icon="play" onPress={onStart} />
+          <GameButton title={t.play} icon="play" onPress={onStart} />
           <GameButton
-            title="كيف نلعب؟"
+            title={t.howToPlayTitle}
             variant="ghost"
             size="md"
             icon="help-circle-outline"
@@ -82,10 +98,10 @@ export default function HomeScreen({
           />
 
           {savedPlayers > 0 ? (
-            <View style={styles.savedRow}>
+            <View style={[styles.savedRow, dir.row]}>
               <Ionicons name="bookmark" size={13} color={colors.textFaint} />
               <AppText style={styles.saved}>
-                {savedPlayers} لاعبين و{savedCategories} فئة محفوظة
+                {t.savedSquad(savedPlayers, savedCategories)}
               </AppText>
             </View>
           ) : null}
@@ -100,9 +116,18 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: space.xl,
   },
+  // Kept physically left-aligned in both languages: these are utility toggles,
+  // not part of the reading flow, and moving them on a language switch would be
+  // more disorienting than helpful.
   topBar: {
     flexDirection: "row",
     justifyContent: "flex-start",
+    gap: space.sm,
+  },
+  langText: {
+    fontFamily: font.bold,
+    fontSize: size.small,
+    color: colors.text,
   },
   iconBtn: {
     width: 42,
@@ -150,7 +175,6 @@ const styles = StyleSheet.create({
     gap: space.md,
   },
   savedRow: {
-    flexDirection: "row-reverse",
     alignItems: "center",
     justifyContent: "center",
     gap: space.xs,
